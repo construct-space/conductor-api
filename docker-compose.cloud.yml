@@ -1,0 +1,43 @@
+# Cloud executor — the fallback worker that runs automations when the user's
+# desktop is offline. Same two processes as the desktop executor (brain +
+# space-runtime), pointed at the same Conductor.
+#
+# STATUS: skeleton. The `brain` service is commented out — it is blocked on the
+# executor-auth decision (see construct-app/docs/2026-05-30-execution-mesh.md):
+# a cloud box has no signed-in profile, so it needs a delegated token to act as
+# the user and provider/org keys to call the model. Decide that first.
+
+services:
+  conductor:
+    build: .                       # api/conductor/Dockerfile
+    environment:
+      PORT: "8090"
+      CONDUCTOR_DATA_DIR: /data
+      # ACCOUNTS_URL defaults to https://my.lisaos.dev/api/accounts
+    volumes:
+      - conductor-data:/data       # persist rules across restarts
+    ports:
+      - "8090:8090"
+
+  space-runtime:
+    build: ../../construct-app/space-runtime   # space-runtime/Dockerfile
+    environment:
+      PORT: "60190"
+      SPACES_DIR: /spaces
+      VITE_GRAPH_URL: https://graph.lisaos.dev
+    volumes:
+      - ./spaces:/spaces:ro        # the spaces this executor can run
+    expose:
+      - "60190"
+
+  # brain:                          # BLOCKED — needs executor-auth decision.
+  #   build: ../../construct-app    # would build the Go brain headless
+  #   environment:
+  #     CONDUCTOR_URL: http://conductor:8090
+  #     CONSTRUCT_SPACE_RUNTIME_URL: http://space-runtime:60190
+  #     # CONSTRUCT_EXECUTOR_TOKEN: <delegated token — TODO, see ADR>
+  #     # provider/org keys: TODO
+  #   depends_on: [conductor, space-runtime]
+
+volumes:
+  conductor-data:
